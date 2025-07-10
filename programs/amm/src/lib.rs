@@ -5,6 +5,8 @@ pub mod instructions;
 pub use instruction::*;
 pub mod state;
 pub use state::*;
+pub mod error;
+pub use error::*;
 
 #[program]
 pub mod amm {
