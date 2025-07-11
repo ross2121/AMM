@@ -8,8 +8,9 @@ use crate::{config, error::AmmError};
 #[instruction(seeds:u64)]
 pub struct Swap<'info>{
 #[account(mut)]
-    pub signer:Signer<'info>,
- pub mintx:Account<'info,Mint>,
+pub signer:Signer<'info>,
+    
+pub mintx:Account<'info,Mint>,
 pub minty:Account<'info,Mint>,
 #[account(mut)]
 pub user_x:Account<'info,TokenAccount>,
@@ -17,13 +18,13 @@ pub user_x:Account<'info,TokenAccount>,
 pub user_y:Account<'info,TokenAccount>,
 #[account(init_if_needed,associated_token::mint=lp_token,associated_token::authority=signer,payer=signer)]
 pub user_lp:Account<'info,TokenAccount>,
-#[account(seeds=[b"lp",config.key().as_ref()],bump=config.lp_bump)]
+#[account(mut,seeds=[b"lp",config.key().as_ref()],bump=config.lp_bump)]
 pub lp_token:Account<'info,Mint>,
-#[account(associated_token::mint=mintx,associated_token::authority=config)]
+#[account(mut,associated_token::mint=mintx,associated_token::authority=config)]
 pub vault_x:Account<'info,TokenAccount>,
-#[account(associated_token::mint=minty,associated_token::authority=config)]
+#[account(mut,associated_token::mint=minty,associated_token::authority=config)]
 pub vault_y:Account<'info,TokenAccount>,
-#[account(seeds=[b"config",seeds.to_le_bytes().as_ref()],bump=config.config_bump)]
+#[account(mut,seeds=[b"config",config.seed.to_le_bytes().as_ref()],bump=config.config_bump)]
 pub config:Account<'info,config>,
 pub system_program:Program<'info,System>,
 pub token_program:Program<'info,Token>,

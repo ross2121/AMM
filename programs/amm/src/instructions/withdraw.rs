@@ -8,39 +8,37 @@ use crate::{config, error::AmmError};
 #[derive(Accounts)]
 #[instruction(seeds:u64)]
 pub struct Withdraw<'info>{
-#[account(mut)]
-    pub signer:Signer<'info>,
- pub mintx:Account<'info,Mint>,
-pub minty:Account<'info,Mint>,
-#[account(mut)]
-pub user_x:Account<'info,TokenAccount>,
-#[account(mut)]
-pub user_y:Account<'info,TokenAccount>,
-#[account(init_if_needed,associated_token::mint=lp_token,associated_token::authority=signer,payer=signer)]
-pub user_lp:Account<'info,TokenAccount>,
-#[account(seeds=[b"lp",config.key().as_ref()],bump=config.lp_bump)]
-pub lp_token:Account<'info,Mint>,
-#[account(associated_token::mint=mintx,associated_token::authority=config)]
-pub vault_x:Account<'info,TokenAccount>,
-#[account(associated_token::mint=minty,associated_token::authority=config)]
-pub vault_y:Account<'info,TokenAccount>,
-#[account(seeds=[b"config",seeds.to_le_bytes().as_ref()],bump=config.config_bump)]
-pub config:Account<'info,config>,
-pub system_program:Program<'info,System>,
-pub token_program:Program<'info,Token>,
-pub associated_token_program:Program<'info,AssociatedToken>
+  #[account(mut)]
+  pub signer:Signer<'info>,
+      
+  pub mintx:Account<'info,Mint>,
+  pub minty:Account<'info,Mint>,
+  #[account(mut)]
+  pub user_x:Account<'info,TokenAccount>,
+  #[account(mut)]
+  pub user_y:Account<'info,TokenAccount>,
+  #[account(init_if_needed,associated_token::mint=lp_token,associated_token::authority=signer,payer=signer)]
+  pub user_lp:Account<'info,TokenAccount>,
+  #[account(mut,seeds=[b"lp",config.key().as_ref()],bump=config.lp_bump)]
+  pub lp_token:Account<'info,Mint>,
+  #[account(mut,associated_token::mint=mintx,associated_token::authority=config)]
+  pub vault_x:Account<'info,TokenAccount>,
+  #[account(mut,associated_token::mint=minty,associated_token::authority=config)]
+  pub vault_y:Account<'info,TokenAccount>,
+  #[account(mut,seeds=[b"config",config.seed.to_le_bytes().as_ref()],bump=config.config_bump)]
+  pub config:Account<'info,config>,
+  pub system_program:Program<'info,System>,
+  pub token_program:Program<'info,Token>,
+  pub associated_token_program:Program<'info,AssociatedToken>
 }
 impl<'info>  Withdraw <'info>{
-    pub fn withdraw(&mut self,amount:u64,max_x:u64,max_y:u64)->Result<()>{
+    pub fn withdraw(&mut self,amount:u64,min_x:u64,min_y:u64)->Result<()>{
         require!(self.config.locked == false, AmmError::PoolLocked);
        require!(amount!=0,AmmError::InvalidAmount);
-       let (x,y)=match self.lp_token.supply==0 && self.mintx.supply==0 && self.minty.supply==0  {
-            true =>(max_x,max_y),
-            false=>{let amount=ConstantProduct::xy_deposit_amounts_from_l(self.vault_x.amount, self.vault_y.amount, self.lp_token.supply, amount, 6).unwrap();(amount.x,amount.y)}
-       };
-       require!(x<=max_x||y<=max_y,AmmError::SlippageExceded);
-       self.withdrawtoken(true, x)?;
-       self.withdrawtoken(false, y)?;
+     let amounts=ConstantProduct::xy_withdraw_amounts_from_l(self.vault_x.amount, self.vault_y.amount, self.lp_token.supply, amount, 6).map_err(|_|AmmError::CurveError)?;
+       require!(amounts.x>=min_x && amounts.y>=min_y,AmmError::SlippageExceded);
+       self.withdrawtoken(true, amounts.x)?;
+       self.withdrawtoken(false,amounts.y)?;
        self.burn(amount)
     
     }

@@ -12,7 +12,7 @@ amm = "AwovFVc8D64taLRrHjmg4ZeNSh6xnZGTbd2Arv6kbcwd"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

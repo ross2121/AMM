@@ -6,10 +6,11 @@ use crate::{config, error::AmmError};
 
 
 #[derive(Accounts)]
-#[instruction(seeds:u64)]
+
 pub struct Deposit<'info>{
 #[account(mut)]
     pub signer:Signer<'info>,
+    
  pub mintx:Account<'info,Mint>,
 pub minty:Account<'info,Mint>,
 #[account(mut)]
@@ -18,13 +19,13 @@ pub user_x:Account<'info,TokenAccount>,
 pub user_y:Account<'info,TokenAccount>,
 #[account(init_if_needed,associated_token::mint=lp_token,associated_token::authority=signer,payer=signer)]
 pub user_lp:Account<'info,TokenAccount>,
-#[account(seeds=[b"lp",config.key().as_ref()],bump=config.lp_bump)]
+#[account(mut,seeds=[b"lp",config.key().as_ref()],bump=config.lp_bump)]
 pub lp_token:Account<'info,Mint>,
-#[account(associated_token::mint=mintx,associated_token::authority=config)]
+#[account(mut,associated_token::mint=mintx,associated_token::authority=config)]
 pub vault_x:Account<'info,TokenAccount>,
-#[account(associated_token::mint=minty,associated_token::authority=config)]
+#[account(mut,associated_token::mint=minty,associated_token::authority=config)]
 pub vault_y:Account<'info,TokenAccount>,
-#[account(seeds=[b"config",seeds.to_le_bytes().as_ref()],bump=config.config_bump)]
+#[account(mut,seeds=[b"config",config.seed.to_le_bytes().as_ref()],bump=config.config_bump)]
 pub config:Account<'info,config>,
 pub system_program:Program<'info,System>,
 pub token_program:Program<'info,Token>,
@@ -34,9 +35,14 @@ impl<'info>  Deposit <'info>{
     pub fn deposit(&mut self,amount:u64,max_x:u64,max_y:u64)->Result<()>{
         require!(self.config.locked == false, AmmError::PoolLocked);
        require!(amount!=0,AmmError::InvalidAmount);
-       let (x,y)=match self.lp_token.supply==0 && self.mintx.supply==0 && self.minty.supply==0  {
+
+    println!("Vault X amount: {}", self.vault_x.amount);
+println!("Vault Y amount: {}", self.vault_y.amount);
+    println!("LP supply: {}", self.lp_token.supply);
+       let (x,y)=match self.lp_token.supply==0 && self.vault_x.amount==0 && self.vault_y.amount==0  {
             true =>(max_x,max_y),
-            false=>{let amount=ConstantProduct::xy_deposit_amounts_from_l(self.vault_x.amount, self.vault_y.amount, self.lp_token.supply, amount, 6).unwrap();(amount.x,amount.y)}
+            false=>{let amount=ConstantProduct::xy_deposit_amounts_from_l(self.vault_x.amount, self.vault_y.amount, self.lp_token.supply, amount, 6).unwrap();
+                (amount.x,amount.y)}
        };
        require!(x<=max_x||y<=max_y,AmmError::SlippageExceded);
        self.deposittoken(true, x)?;
